@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Una pregunta para ti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+/* ===== CONFIGURA AQUÍ ===== */
+/* Cambia el nombre y la foto en la sección <script> al final del archivo */
+
+:root{
+  --noche:#1a0b1f;
+  --vino:#3a1230;
+  --rosa:#ff7a9c;
+  --oro:#ffd9a0;
+  --crema:#fff3e6;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(ellipse at 50% 120%,var(--vino),var(--noche) 70%);
+  color:var(--crema);
+  font-family:"Cormorant Garamond",Georgia,serif;
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+}
+canvas{position:fixed;inset:0;z-index:0}
+main{position:relative;z-index:1;text-align:center;max-width:560px;width:100%}
+
+#frases{font-size:clamp(1.5rem,5.5vw,2.2rem);font-style:italic;line-height:1.35;min-height:6.5em;display:flex;align-items:center;justify-content:center}
+#frases span{opacity:0;transition:opacity 1.6s ease}
+#frases span.on{opacity:1}
+
+#pregunta{display:none}
+#pregunta h1{
+  font-family:"Caveat",cursive;font-weight:600;
+  font-size:clamp(2.6rem,11vw,4.6rem);line-height:1.1;
+  color:var(--oro);text-shadow:0 0 28px rgba(255,170,120,.55);
+  margin-bottom:.4em;
+}
+#pregunta p.sub{font-style:italic;font-size:1.25rem;opacity:.8;margin-bottom:2rem}
+
+.botones{display:flex;gap:18px;justify-content:center;align-items:center;min-height:70px}
+button{
+  font-family:inherit;font-size:1.35rem;font-weight:500;cursor:pointer;
+  border-radius:999px;padding:.7em 2em;border:0;
+  transition:transform .15s ease,box-shadow .3s ease;
+}
+button:focus-visible{outline:3px solid var(--oro);outline-offset:3px}
+#si{background:linear-gradient(135deg,#ff7a9c,#ff5a7e);color:#fff;box-shadow:0 8px 28px rgba(255,90,126,.45)}
+#si:hover{transform:scale(1.06)}
+#no{background:transparent;color:var(--crema);border:1.5px solid rgba(255,243,230,.5)}
+#no.huye{position:fixed;z-index:5;transition:left .25s ease,top .25s ease}
+
+#error{
+  position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translate(-50%,30px);
+  background:#2a0f2b;border:1px solid #ff5a7e;color:#ffd0da;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;
+  padding:.8em 1.2em;border-radius:10px;max-width:90vw;
+  opacity:0;pointer-events:none;transition:all .35s ease;z-index:10;
+}
+#error.on{opacity:1;transform:translate(-50%,0)}
+
+#final{display:none;animation:entra 1.2s ease both}
+#final .polaroid{
+  background:#fffaf2;padding:14px 14px 18px;border-radius:4px;
+  box-shadow:0 18px 50px rgba(0,0,0,.55);
+  transform:rotate(-3deg);display:inline-block;max-width:86vw;
+}
+#final img{display:block;width:min(320px,74vw);aspect-ratio:4/5;object-fit:cover;background:#eadfd2}
+#final .faltante{display:none;width:min(320px,74vw);aspect-ratio:4/5;background:#eadfd2;color:#6b5a4e;align-items:center;justify-content:center;padding:1em;font-size:1.1rem}
+#final .pie{font-family:"Caveat",cursive;font-size:1.9rem;color:#5a2a3a;margin-top:10px}
+#final h2{font-family:"Caveat",cursive;font-size:clamp(2.2rem,9vw,3.4rem);color:var(--oro);margin-top:1.1em;text-shadow:0 0 24px rgba(255,170,120,.5)}
+@keyframes entra{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+/* ===== Oso y tortuga caminando ===== */
+#paseo{position:fixed;left:0;bottom:calc(6px + env(safe-area-inset-bottom));z-index:1;pointer-events:none;
+  display:flex;align-items:flex-end;gap:16px;animation:camina 42s linear infinite}
+@keyframes camina{from{transform:translateX(-320px)}to{transform:translateX(100vw)}}
+#paseo svg{overflow:visible;animation:rebote .8s ease-in-out infinite alternate}
+#paseo .oso{width:112px}
+#paseo .tortuga{width:80px;animation-duration:1.4s}
+@keyframes rebote{to{transform:translateY(-3px)}}
+.pata{transform-box:fill-box;transform-origin:50% 0;animation:paso .8s ease-in-out infinite alternate}
+.pata.b{animation-delay:-.8s}
+.tortuga .pata{animation-duration:1.4s}
+.tortuga .pata.b{animation-delay:-1.4s}
+@keyframes paso{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+#paseo .amor{position:absolute;left:62px;top:-30px;font-size:1.3rem;animation:flota 2.4s ease-in-out infinite}
+@keyframes flota{0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(-12px);opacity:1}}
+/* ===== Suspenso final ===== */
+#frase.tiembla{animation:tiembla .12s linear infinite;text-shadow:0 0 22px rgba(255,122,156,.7)}
+@keyframes tiembla{0%{transform:translate(0,0)}25%{transform:translate(-3px,2px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,-3px)}100%{transform:translate(0,0)}}
+#flash{position:fixed;inset:0;background:var(--crema);opacity:0;pointer-events:none;z-index:20}
+#flash.on{animation:destello .8s ease-out}
+@keyframes destello{0%{opacity:.95}100%{opacity:0}}
+main.sacude{animation:sacude .45s ease}
+@keyframes sacude{0%,100%{transform:translate(0,0)}20%{transform:translate(-8px,5px)}40%{transform:translate(7px,-6px)}60%{transform:translate(-5px,-4px)}80%{transform:translate(4px,5px)}}
+#pregunta.pop{animation:pop .75s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes pop{0%{opacity:0;transform:scale(.4)}60%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="lienzo"></canvas>
+
+<div id="paseo" aria-hidden="true">
+  <span class="amor">💗</span>
+  <svg class="oso" viewBox="0 0 120 80">
+    <rect class="pata a" x="20" y="50" width="12" height="26" rx="6" fill="#6e4429"/>
+    <rect class="pata b" x="60" y="50" width="12" height="26" rx="6" fill="#6e4429"/>
+    <ellipse cx="50" cy="44" rx="36" ry="24" fill="#8b5a3c"/>
+    <rect class="pata b" x="34" y="50" width="12" height="26" rx="6" fill="#8b5a3c"/>
+    <rect class="pata a" x="74" y="50" width="12" height="26" rx="6" fill="#8b5a3c"/>
+    <circle cx="84" cy="19" r="6" fill="#8b5a3c"/>
+    <circle cx="92" cy="34" r="17" fill="#8b5a3c"/>
+    <ellipse cx="106" cy="40" rx="9" ry="7" fill="#d9b08c"/>
+    <circle cx="112" cy="37" r="3" fill="#2a1a1a"/>
+    <circle cx="96" cy="30" r="2" fill="#2a1a1a"/>
+  </svg>
+  <svg class="tortuga" viewBox="0 0 100 60">
+    <rect class="pata a" x="24" y="38" width="10" height="16" rx="5" fill="#7fb069"/>
+    <rect class="pata b" x="60" y="38" width="10" height="16" rx="5" fill="#7fb069"/>
+    <polygon points="10,44 22,38 22,47" fill="#7fb069"/>
+    <ellipse cx="84" cy="34" rx="11" ry="8" fill="#9bc47f"/>
+    <circle cx="88" cy="31" r="1.8" fill="#1d2b1d"/>
+    <path d="M86 37 q4 3 8 0" stroke="#1d2b1d" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M16 46 A34 30 0 0 1 80 46 Z" fill="#4f8a4a"/>
+    <path d="M30 44 q4-16 18-18 M48 44 q0-14 0-18 M66 44 q-4-14-18-18 M24 36 h48" stroke="#2f5e33" stroke-width="1.5" fill="none"/>
+    <rect class="pata a" x="38" y="42" width="10" height="14" rx="5" fill="#9bc47f"/>
+    <rect class="pata b" x="72" y="42" width="10" height="14" rx="5" fill="#9bc47f"/>
+  </svg>
+</div>
+
+<main>
+  <div id="frases"><span id="frase"></span></div>
+
+  <div id="pregunta">
+    <h1 id="titulo"></h1>
+    <p class="sub">No es lo que tengo pensado hacer cuando vaya a verte, es un adelanto.</p>
+    <div class="botones">
+      <button id="si">Sí 💖</button>
+      <button id="no">No</button>
+    </div>
+  </div>
+
+  <div id="final">
+    <div class="polaroid">
+      <img id="foto" src="foto.jpg" alt="Nosotros dos">
+      <div class="faltante" id="faltante">Pon tu foto en esta misma carpeta y llámala foto.jpg</div>
+      <div class="pie" id="pie"></div>
+    </div>
+    <h2>Sabía que dirías que sí 😛</h2>
+  </div>
+</main>
+
+<div id="flash"></div>
+<div id="error" role="alert"></div>
+
+<script>
+/* ========= PERSONALIZA ESTO ========= */
+const NOMBRE = "Gisell";            // Cambia por su nombre, ej: "Valeria"
+const FOTO   = "foto.jpg";           // Pon tu foto en la misma carpeta con este nombre
+const PIE    = "Tú y yo, desde hoy";  // Texto bajo la foto
+const FRASES = [
+  "Hay cosas que se dicen mejor sin prisa…",
+  "Desde que te conocí, mis días ya no son aburridos.",
+  "Me haces reír hasta cuando no quiero.",
+  "Y la verdad es que ya no quiero que seas solo casi algo.",
+  "Y hoy me armé de valor, " + "rarita" + "…"
+];
+
+// Cuenta dramática: [texto, tamaño, milisegundos en pantalla]
+const SUSPENSO = [
+  ["Te quería preguntar si…", 1,    2400],
+  ["si…",                     1.15, 1500],
+  ["si…",                     1.35, 1300],
+  ["siiiii…",                 1.6,  1200],
+  ["siiiiiii…",               1.9,  1100],
+  ["SIIIII!!",                2.3,  1000]
+];
+/* ===================================== */
+
+// ---------- Luciérnagas ----------
+const c = document.getElementById("lienzo"), x = c.getContext("2d");
+let W, H, luces = [];
+function ajusta(){ W = c.width = innerWidth; H = c.height = innerHeight; }
+addEventListener("resize", ajusta); ajusta();
+for (let i = 0; i < 55; i++) luces.push({
+  x: Math.random()*W, y: Math.random()*H, r: 1+Math.random()*2.4,
+  vx: (Math.random()-.5)*.25, vy: -.1-Math.random()*.3, f: Math.random()*6.28
+});
+let corazones = [];
+function dibuja(t){
+  x.clearRect(0,0,W,H);
+  for (const l of luces){
+    l.x += l.vx + Math.sin(t/1800 + l.f)*.2; l.y += l.vy;
+    if (l.y < -10){ l.y = H+10; l.x = Math.random()*W; }
+    const a = .35 + .35*Math.sin(t/700 + l.f);
+    const g = x.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r*7);
+    g.addColorStop(0,`rgba(255,217,160,${a})`); g.addColorStop(1,"rgba(255,217,160,0)");
+    x.fillStyle = g; x.beginPath(); x.arc(l.x,l.y,l.r*7,0,6.28); x.fill();
+  }
+  for (const h of corazones){
+    h.x += h.vx; h.y += h.vy; h.vy += .02; h.vida--;
+    x.globalAlpha = Math.max(h.vida/120,0);
+    x.font = h.s+"px serif"; x.fillText(h.e, h.x, h.y);
+  }
+  x.globalAlpha = 1;
+  corazones = corazones.filter(h => h.vida > 0);
+  requestAnimationFrame(dibuja);
+}
+requestAnimationFrame(dibuja);
+
+function lluvia(){
+  const em = ["💖","💗","💕","✨","🌹"];
+  for (let i = 0; i < 90; i++) corazones.push({
+    x: W/2, y: H/2, vx: (Math.random()-.5)*9, vy: -Math.random()*9-2,
+    s: 18+Math.random()*26, e: em[i % em.length], vida: 100+Math.random()*60
+  });
+}
+
+// ---------- Frases en secuencia ----------
+const frase = document.getElementById("frase");
+function mostrar(i){
+  if (i >= FRASES.length){ suspenso(0); return; }
+  frase.classList.remove("on");
+  setTimeout(() => { frase.textContent = FRASES[i]; frase.classList.add("on"); }, 900);
+  setTimeout(() => mostrar(i+1), 4600);
+}
+function suspenso(i){
+  if (i >= SUSPENSO.length){ pam(); return; }
+  const [txt, escala, dur] = SUSPENSO[i];
+  frase.style.transition = "opacity .35s ease";
+  frase.classList.remove("on");
+  setTimeout(() => {
+    frase.textContent = txt;
+    frase.style.display = "inline-block";
+    frase.style.fontSize = escala + "em";
+    frase.classList.toggle("tiembla", i >= 3);
+    frase.classList.add("on");
+  }, 350);
+  setTimeout(() => suspenso(i + 1), dur + 350);
+}
+
+function pam(){
+  document.getElementById("flash").classList.add("on");
+  const m = document.querySelector("main");
+  m.classList.add("sacude");
+  setTimeout(() => m.classList.remove("sacude"), 500);
+  setTimeout(() => {
+    document.getElementById("frases").style.display = "none";
+    const p = document.getElementById("pregunta");
+    p.style.display = "block"; p.classList.add("pop");
+    document.getElementById("titulo").textContent = "¿Quieres ser mi novia?";
+    lluvia();
+  }, 150);
+}
+
+setTimeout(() => mostrar(0), 600);
+
+// ---------- Botón "No" que escapa ----------
+const no = document.getElementById("no"), si = document.getElementById("si"), err = document.getElementById("error");
+const ERRORES = [
+  "Error 404: la opción «No» no se encuentra.",
+  "Error: el botón «No» dejó de funcionar. Intenta con «Sí».",
+  "Excepción no controlada: NoSePuedeNegarException",
+  "Error 500: el corazón del programador no soporta esa respuesta.",
+  "Fallo crítico: «No» fue desactivado por exceso de amor.",
+  "Advertencia: seguir intentando no cambiará el resultado 😌"
+];
+let intentos = 0, tErr;
+const LIMITE = 6; // intentos antes de que «No» desaparezca por completo
+
+function desaparece(){
+  no.style.transition = "opacity .6s ease, transform .6s ease";
+  no.style.opacity = "0";
+  no.style.transform = "scale(.2)";
+  no.style.pointerEvents = "none";
+  setTimeout(() => { no.style.display = "none"; }, 650);
+  si.style.transform = "scale(1.9)";
+  err.textContent = "La opción «No» fue eliminada del sistema. Solo queda «Sí» 💖";
+  err.classList.add("on");
+  clearTimeout(tErr); tErr = setTimeout(() => err.classList.remove("on"), 4000);
+}
+
+function escapa(e){
+  if (e) e.preventDefault();
+  intentos++;
+  if (intentos >= LIMITE){ if (no.style.display !== "none") desaparece(); return; }
+  no.classList.add("huye");
+  const m = 20, bw = no.offsetWidth, bh = no.offsetHeight;
+  no.style.left = (m + Math.random()*(innerWidth  - bw - 2*m)) + "px";
+  no.style.top  = (m + Math.random()*(innerHeight - bh - 2*m)) + "px";
+  si.style.transform = `scale(${Math.min(1 + intentos*.12, 1.9)})`;
+  err.textContent = ERRORES[(intentos-1) % ERRORES.length];
+  err.classList.add("on");
+  clearTimeout(tErr); tErr = setTimeout(() => err.classList.remove("on"), 2600);
+}
+no.addEventListener("pointerenter", escapa);
+no.addEventListener("pointerdown", escapa);
+no.addEventListener("click", escapa);
+
+// ---------- "Sí" ----------
+si.addEventListener("click", () => {
+  document.getElementById("pregunta").style.display = "none";
+  no.style.display = "none"; err.classList.remove("on");
+  const f = document.getElementById("foto");
+  f.src = FOTO;
+  f.onerror = () => { f.style.display = "none"; document.getElementById("faltante").style.display = "flex"; };
+  document.getElementById("pie").textContent = PIE;
+  document.getElementById("final").style.display = "block";
+  lluvia(); setTimeout(lluvia, 700); setTimeout(lluvia, 1500);
+});
+</script>
+</body>
+</html>
