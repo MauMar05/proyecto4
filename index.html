@@ -373,8 +373,20 @@ function pam(){
 const musica = document.getElementById("musica"), btnSonido = document.getElementById("sonido");
 if (MUSICA) musica.src = MUSICA;
 
+let musicaActiva = false;
+
+// Se "desbloquea" en silencio al tocar Entrar, pero no suena hasta que la clave sea correcta
+function desbloqueaMusica(){
+  if (!MUSICA || musicaActiva) return;
+  musica.muted = true;
+  musica.play().then(() => {
+    if (musicaActiva) return;
+    musica.pause(); musica.currentTime = 0; musica.muted = false;
+  }).catch(() => { musica.muted = false; });
+}
 function iniciaMusica(){
-  if (!MUSICA || !musica.paused) return;
+  if (!MUSICA || musicaActiva) return;
+  musicaActiva = true;
   btnSonido.style.display = "block";
   musica.muted = false; musica.volume = 0;
   musica.play().then(() => {
@@ -399,7 +411,7 @@ document.getElementById("login-form").addEventListener("submit", e => {
   e.preventDefault();
   if (ocupado) return;
   ocupado = true;
-  iniciaMusica();
+  desbloqueaMusica();
   const n = limpia(document.getElementById("in-nombre").value);
   const k = limpia(document.getElementById("in-clave").value);
   const nombreOk = NOMBRES_VALIDOS.some(v => limpia(v) === n);
@@ -418,6 +430,7 @@ document.getElementById("login-form").addEventListener("submit", e => {
         acceso.classList.add("fuera");
         document.getElementById("frases").style.display = "flex";
         document.getElementById("paseo").style.display = "flex";
+        iniciaMusica();
         setTimeout(() => mostrar(0), 1200);
       }, 1300);
       return;
