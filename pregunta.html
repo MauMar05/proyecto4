@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Una pregunta para ti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ===== CONFIGURA AQUÍ ===== */
+/* Cambia el nombre y la foto en la sección <script> al final del archivo */
+
+:root{
+  --noche:#0a0612;
+  --rosa:#ff6b9d;
+  --oro:#ffb8d1;
+  --crema:#ffffff;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  background:var(--noche);
+  color:#fff;
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+}
+canvas{position:fixed;inset:0;z-index:0}
+main{position:relative;z-index:1;text-align:center;max-width:560px;width:100%}
+
+/* Fondo aurora */
+.aurora{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.aurora i{position:absolute;border-radius:50%}
+.aurora i:nth-child(1){width:90vmax;height:90vmax;left:-35vmax;top:-40vmax;
+  background:radial-gradient(circle,rgba(123,47,247,.55),transparent 62%);animation:deriva1 24s ease-in-out infinite alternate}
+.aurora i:nth-child(2){width:80vmax;height:80vmax;right:-35vmax;top:5vmax;
+  background:radial-gradient(circle,rgba(255,46,126,.42),transparent 62%);animation:deriva2 28s ease-in-out infinite alternate}
+.aurora i:nth-child(3){width:75vmax;height:75vmax;left:0;bottom:-45vmax;
+  background:radial-gradient(circle,rgba(255,138,76,.30),transparent 62%);animation:deriva3 32s ease-in-out infinite alternate}
+@keyframes deriva1{to{transform:translate(22vmax,14vmax) scale(1.15)}}
+@keyframes deriva2{to{transform:translate(-18vmax,12vmax) scale(1.1)}}
+@keyframes deriva3{to{transform:translate(16vmax,-14vmax) scale(1.2)}}
+
+#frases{font-size:clamp(1.7rem,6vw,2.8rem);font-weight:700;letter-spacing:-.02em;line-height:1.18;min-height:6.5em;display:flex;align-items:center;justify-content:center}
+#frases span{display:inline-block;opacity:0;filter:blur(12px);transform:translateY(12px);
+  transition:opacity 1.2s ease,filter 1.2s ease,transform 1.2s ease;
+  background:linear-gradient(135deg,#fff 15%,#ffc4d8 60%,#ff8fb4);-webkit-background-clip:text;background-clip:text;color:transparent}
+#frases span.on{opacity:1;filter:none;transform:none}
+
+#pregunta{display:none}
+#pregunta .chip{display:inline-block;margin-bottom:18px;padding:.45em 1em;border-radius:999px;
+  font-size:.8rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.8);
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#pregunta h1{
+  font-weight:800;font-size:clamp(2.4rem,10.5vw,4.4rem);line-height:1.05;letter-spacing:-.035em;
+  background:linear-gradient(120deg,#fff 10%,#ffb8d1 55%,#ff7aa8);-webkit-background-clip:text;background-clip:text;color:transparent;
+  margin-bottom:.45em;
+}
+#pregunta p.sub{font-weight:500;font-size:1.02rem;color:rgba(255,255,255,.62);margin-bottom:2.2rem}
+
+.botones{display:flex;gap:14px;justify-content:center;align-items:center;min-height:70px}
+button{
+  font-family:inherit;font-size:1.05rem;font-weight:700;cursor:pointer;
+  border-radius:999px;padding:.95em 2.2em;border:0;
+  transition:transform .2s ease,box-shadow .3s ease,background .2s ease;
+}
+button:focus-visible{outline:3px solid var(--oro);outline-offset:3px}
+#si{background:linear-gradient(135deg,#ff6b9d,#ff8e72);color:#fff;box-shadow:0 10px 34px rgba(255,107,157,.5)}
+#si:hover{transform:translateY(-2px) scale(1.05);box-shadow:0 14px 42px rgba(255,107,157,.65)}
+#no{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#no.huye{position:fixed;z-index:5;transition:left .25s ease,top .25s ease}
+
+#error{
+  position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translate(-50%,30px);
+  background:rgba(20,10,30,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(255,107,157,.55);color:#ffd6e2;
+  font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;
+  padding:.85em 1.2em;border-radius:14px;max-width:90vw;
+  opacity:0;pointer-events:none;transition:all .35s ease;z-index:10;
+}
+#error.on{opacity:1;transform:translate(-50%,0)}
+
+#final{display:none;animation:entra 1.2s ease both}
+#final .polaroid{
+  display:inline-block;max-width:86vw;padding:12px 12px 16px;border-radius:30px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(255,107,157,.18);
+}
+#final img{display:block;width:min(320px,74vw);aspect-ratio:4/5;object-fit:cover;border-radius:20px;background:rgba(255,255,255,.08)}
+#final .faltante{display:none;width:min(320px,74vw);aspect-ratio:4/5;border-radius:20px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);align-items:center;justify-content:center;padding:1em;font-size:1rem;font-weight:500}
+#final .pie{font-size:1rem;font-weight:600;letter-spacing:.01em;color:rgba(255,255,255,.88);margin-top:14px}
+#final h2{font-weight:800;font-size:clamp(1.8rem,7.5vw,2.7rem);letter-spacing:-.03em;line-height:1.1;margin-top:1.1em;
+  background:linear-gradient(120deg,#fff 10%,#ffb8d1 55%,#ff7aa8);-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes entra{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+/* ===== Oso y tortuga caminando ===== */
+#paseo{position:fixed;left:0;bottom:calc(6px + env(safe-area-inset-bottom));z-index:1;pointer-events:none;
+  display:flex;align-items:flex-end;gap:16px;animation:camina 42s linear infinite}
+@keyframes camina{from{transform:translateX(-320px)}to{transform:translateX(100vw)}}
+#paseo svg{overflow:visible;animation:rebote .8s ease-in-out infinite alternate}
+#paseo .oso{width:112px}
+#paseo .tortuga{width:80px;animation-duration:1.4s}
+@keyframes rebote{to{transform:translateY(-3px)}}
+.pata{transform-box:fill-box;transform-origin:50% 0;animation:paso .8s ease-in-out infinite alternate}
+.pata.b{animation-delay:-.8s}
+.tortuga .pata{animation-duration:1.4s}
+.tortuga .pata.b{animation-delay:-1.4s}
+@keyframes paso{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+#paseo .amor{position:absolute;left:62px;top:-30px;font-size:1.3rem;animation:flota 2.4s ease-in-out infinite}
+@keyframes flota{0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(-12px);opacity:1}}
+/* ===== Suspenso final ===== */
+#frases span.tiembla{animation:tiembla .12s linear infinite;filter:drop-shadow(0 0 14px rgba(255,100,150,.55))}
+@keyframes tiembla{0%{transform:translate(0,0)}25%{transform:translate(-3px,2px)}50%{transform:translate(3px,-2px)}75%{transform:translate(-2px,-3px)}100%{transform:translate(0,0)}}
+#flash{position:fixed;inset:0;background:var(--crema);opacity:0;pointer-events:none;z-index:20}
+#flash.on{animation:destello .8s ease-out}
+@keyframes destello{0%{opacity:.95}100%{opacity:0}}
+main.sacude{animation:sacude .45s ease}
+@keyframes sacude{0%,100%{transform:translate(0,0)}20%{transform:translate(-8px,5px)}40%{transform:translate(7px,-6px)}60%{transform:translate(-5px,-4px)}80%{transform:translate(4px,5px)}}
+#pregunta.pop{animation:pop .75s cubic-bezier(.2,.9,.3,1.2) backwards}
+@keyframes pop{0%{opacity:0;transform:scale(.4)}60%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:none}}
+/* ===== Pantalla de acceso (estilo formal) ===== */
+#acceso{position:fixed;inset:0;z-index:50;overflow:auto;
+  display:flex;align-items:center;justify-content:center;
+  padding:calc(20px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom));
+  background-color:#eef1f5;
+  background-image:linear-gradient(rgba(30,50,90,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(30,50,90,.06) 1px,transparent 1px);
+  background-size:32px 32px;
+  color:#1b2433;text-align:left;
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  transition:opacity .9s ease,visibility 0s linear .9s}
+#acceso.fuera{opacity:0;visibility:hidden}
+#acceso .wrap{width:100%;max-width:400px}
+#acceso .marca{display:flex;align-items:center;gap:10px;margin-bottom:16px;
+  font-size:.72rem;font-weight:600;letter-spacing:.14em;color:#33415c}
+#acceso .panel{background:#fff;border:1px solid #d5dbe5;border-top:4px solid #1f3a6e;border-radius:6px;
+  padding:28px 26px 24px;box-shadow:0 10px 30px rgba(20,35,70,.10)}
+#acceso .panel.mal{animation:sacude .45s ease}
+#acceso .ref{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;font-size:.72rem;letter-spacing:.06em;color:#6a7690;margin-bottom:10px}
+#acceso h1{font-family:inherit;font-size:1.5rem;font-weight:600;color:#14213d;margin-bottom:6px;text-shadow:none}
+#acceso .desc{font-size:.92rem;line-height:1.5;color:#56627a;margin-bottom:22px}
+#acceso label{display:block;margin-bottom:6px;font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#33415c}
+#acceso input{width:100%;font:inherit;font-size:16px;color:#14213d;background:#fafbfd;
+  border:1px solid #b9c2d3;border-radius:4px;padding:.7em .8em;margin-bottom:16px;outline:none;text-align:left}
+#acceso input:focus{border-color:#1f3a6e;box-shadow:0 0 0 3px rgba(31,58,110,.18);background:#fff}
+#acceso button{width:100%;font-family:inherit;font-size:.95rem;font-weight:600;letter-spacing:.04em;
+  color:#fff;background:#1f3a6e;border-radius:4px;padding:.85em 1em;box-shadow:none;transition:background .2s}
+#acceso button:hover{background:#2a4a8a;transform:none}
+#acceso button:disabled{background:#8a97b3;cursor:wait}
+#msg{margin-top:14px;font-size:.85rem;line-height:1.5;white-space:pre-line}
+#msg.err{background:#fdecea;border-left:3px solid #b3261e;color:#7a1a14;padding:.6em .8em}
+#msg.bien{background:#e8f4ec;border-left:3px solid #2e7d4f;color:#1d5a37;padding:.6em .8em}
+#acceso .pie{margin-top:16px;text-align:center;font-size:.72rem;line-height:1.7;color:#6a7690}
+#acceso .pie i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2e7d4f;margin-right:6px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* ===== Botón de música ===== */
+#sonido{position:fixed;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:15;display:none;
+  width:44px;height:44px;padding:0;font-size:1.15rem;font-weight:400;line-height:1;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#sonido:hover{background:rgba(255,255,255,.18)}
+</style>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<canvas id="lienzo"></canvas>
+
+<div id="paseo" aria-hidden="true" style="display:none">
+  <span class="amor">💗</span>
+  <svg class="oso" viewBox="0 0 120 80">
+    <rect class="pata a" x="20" y="50" width="12" height="26" rx="6" fill="#6e4429"/>
+    <rect class="pata b" x="60" y="50" width="12" height="26" rx="6" fill="#6e4429"/>
+    <ellipse cx="50" cy="44" rx="36" ry="24" fill="#8b5a3c"/>
+    <rect class="pata b" x="34" y="50" width="12" height="26" rx="6" fill="#8b5a3c"/>
+    <rect class="pata a" x="74" y="50" width="12" height="26" rx="6" fill="#8b5a3c"/>
+    <circle cx="84" cy="19" r="6" fill="#8b5a3c"/>
+    <circle cx="92" cy="34" r="17" fill="#8b5a3c"/>
+    <ellipse cx="106" cy="40" rx="9" ry="7" fill="#d9b08c"/>
+    <circle cx="112" cy="37" r="3" fill="#2a1a1a"/>
+    <circle cx="96" cy="30" r="2" fill="#2a1a1a"/>
+  </svg>
+  <svg class="tortuga" viewBox="0 0 100 60">
+    <rect class="pata a" x="24" y="38" width="10" height="16" rx="5" fill="#7fb069"/>
+    <rect class="pata b" x="60" y="38" width="10" height="16" rx="5" fill="#7fb069"/>
+    <polygon points="10,44 22,38 22,47" fill="#7fb069"/>
+    <ellipse cx="84" cy="34" rx="11" ry="8" fill="#9bc47f"/>
+    <circle cx="88" cy="31" r="1.8" fill="#1d2b1d"/>
+    <path d="M86 37 q4 3 8 0" stroke="#1d2b1d" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M16 46 A34 30 0 0 1 80 46 Z" fill="#4f8a4a"/>
+    <path d="M30 44 q4-16 18-18 M48 44 q0-14 0-18 M66 44 q-4-14-18-18 M24 36 h48" stroke="#2f5e33" stroke-width="1.5" fill="none"/>
+    <rect class="pata a" x="38" y="42" width="10" height="14" rx="5" fill="#9bc47f"/>
+    <rect class="pata b" x="72" y="42" width="10" height="14" rx="5" fill="#9bc47f"/>
+  </svg>
+</div>
+
+<main>
+  <div id="frases" style="display:none"><span id="frase"></span></div>
+
+  <div id="pregunta">
+    <span class="chip">una pregunta para ti</span>
+    <h1 id="titulo"></h1>
+    <p class="sub">Como vuelvo y repito, es solo un adelanto</p>
+    <div class="botones">
+      <button id="si">Sí 💖</button>
+      <button id="no">No</button>
+    </div>
+  </div>
+
+  <div id="final">
+    <div class="polaroid">
+      <img id="foto" src="foto.jpg" alt="Nosotros dos">
+      <div class="faltante" id="faltante">Pon tu foto en esta misma carpeta y llámala foto.jpg</div>
+      <div class="pie" id="pie"></div>
+    </div>
+    <h2>Sabía que dirías que sí 😁😛❤️</h2>
+  </div>
+</main>
+
+<div id="acceso">
+  <div class="wrap">
+    <div class="marca">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1f3a6e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span>SISTEMA DE GESTIÓN DE PROYECTOS</span>
+    </div>
+    <section class="panel" id="panel">
+      <div class="ref">REF. 0214 · CONFIDENCIAL</div>
+      <h1>Acceso restringido</h1>
+      <p class="desc">Ingrese sus credenciales para consultar el expediente asignado a su usuario.</p>
+      <form id="login-form" autocomplete="off">
+        <label for="in-nombre">Usuario</label>
+        <input id="in-nombre" type="text" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <label for="in-clave">Clave de autorización</label>
+        <input id="in-clave" type="password" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button type="submit" id="btn-entrar">Iniciar sesión</button>
+      </form>
+      <div id="msg" role="status"></div>
+    </section>
+    <div class="pie"><i></i>Conexión segura · v2.4.1<br>Acceso exclusivo para personal autorizado.<br>Todo intento no autorizado será registrado.</div>
+  </div>
+</div>
+<audio id="musica" loop preload="auto"></audio>
+<button id="sonido" aria-label="Activar o silenciar la música">🔊</button>
+<div id="flash"></div>
+<div id="error" role="alert"></div>
+
+<script>
+/* ========= PERSONALIZA ESTO ========= */
+const NOMBRE = "Gisell";            // Cambia por su nombre, ej: "Valeria"
+const FOTO   = "foto.jpg";           // Pon tu foto en la misma carpeta con este nombre
+const PIE    = "Tú y yo, desde hoy para siempre";  // Texto bajo la foto
+// ----- Pantalla de acceso -----
+const NOMBRES_VALIDOS = [NOMBRE];   // Nombres que acepta. Puedes agregar apodos: [NOMBRE, "Gis", "rarita"]
+const CLAVE = "tortuga";            // La clave que tú le vas a dar (cámbiala por la tuya)
+const PISTA = "Pídele una pista a quien te mandó esto 😏"; // Sale después de 3 errores ("" para no usarla)
+
+// ----- Música de fondo -----
+const MUSICA  = "cancion.mp3";  // Nombre de tu canción. "" = sin música
+const VOLUMEN = 0.5;            // De 0 (silencio) a 1 (máximo)
+
+const FRASES = [
+  "Hola, soy yo, el que tanto te aburre con sus mensajes...",  
+  "Yo sé que esto no es lo que tu quieres, pero solo es un adelanto de lo que quiero hacer cuando te pueda ir a ver",
+  "Sé que hemos pasado por mucho, por demasiadas cosas",
+  "pero también sé que hemos pasado por cosas muy bonitas y que a pesar de todo, seguimos aquí",
+  "Me dijiste que no te soltara, que no te dejara ir y eso es lo que he hecho,",
+  "aunque pensaste que estaba feliz sin ti y como tu dices, libre",
+  "pero te eché mucho de menos, y no me gusta estar así, sin ti",
+  "Desde que volvimos a hablar, me he dado cuenta que no quiero estar sin ti,",
+  "sin tus chistes",
+  "sin tus bromas",
+  "sin tus buenos días",
+  "sin tus buenas noches",
+  "sin tus palabras de amor",
+  "cuando te pones cariñosa aunque no te guste jaja",
+  "sin tus te amo",
+  "porque...",
+  "Desde que te conocí, mis días ya no son aburridos.",
+  "Me haces reír hasta cuando no quiero.",
+  "Y la verdad es que ya no quiero que seas solo casi algo.",
+  "Ya que eres todo lo que quiero",
+  "solo tus besos, tus abrazos, tu risa, tu compañía y tu amor me hacen feliz.",
+  "Y hoy me armé de valor, rarita…"
+];
+
+// Cuenta dramática: [texto, tamaño, milisegundos en pantalla]
+const SUSPENSO = [
+  ["Te quería preguntar si…", 1,    2400],
+  ["si…",                     1.15, 1500],
+  ["si…",                     1.35, 1300],
+  ["siiiii…",                 1.6,  1200],
+  ["siiiiiii…",               1.9,  1100],
+  ["SIIIII!!",                2.3,  1000]
+];
+/* ===================================== */
+
+// ---------- Luciérnagas ----------
+const c = document.getElementById("lienzo"), x = c.getContext("2d");
+let W, H, luces = [];
+function ajusta(){ W = c.width = innerWidth; H = c.height = innerHeight; }
+addEventListener("resize", ajusta); ajusta();
+for (let i = 0; i < 30; i++) luces.push({
+  x: Math.random()*W, y: Math.random()*H, r: 1+Math.random()*2.4,
+  vx: (Math.random()-.5)*.25, vy: -.1-Math.random()*.3, f: Math.random()*6.28
+});
+let corazones = [];
+function dibuja(t){
+  x.clearRect(0,0,W,H);
+  for (const l of luces){
+    l.x += l.vx + Math.sin(t/1800 + l.f)*.2; l.y += l.vy;
+    if (l.y < -10){ l.y = H+10; l.x = Math.random()*W; }
+    const a = .35 + .35*Math.sin(t/700 + l.f);
+    const g = x.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r*7);
+    g.addColorStop(0,`rgba(255,190,220,${a*.7})`); g.addColorStop(1,"rgba(255,190,220,0)");
+    x.fillStyle = g; x.beginPath(); x.arc(l.x,l.y,l.r*7,0,6.28); x.fill();
+  }
+  for (const h of corazones){
+    h.x += h.vx; h.y += h.vy; h.vy += .02; h.vida--;
+    x.globalAlpha = Math.max(h.vida/120,0);
+    x.font = h.s+"px serif"; x.fillText(h.e, h.x, h.y);
+  }
+  x.globalAlpha = 1;
+  corazones = corazones.filter(h => h.vida > 0);
+  requestAnimationFrame(dibuja);
+}
+requestAnimationFrame(dibuja);
+
+function lluvia(){
+  const em = ["💖","💗","💕","✨","🌹"];
+  for (let i = 0; i < 90; i++) corazones.push({
+    x: W/2, y: H/2, vx: (Math.random()-.5)*9, vy: -Math.random()*9-2,
+    s: 18+Math.random()*26, e: em[i % em.length], vida: 100+Math.random()*60
+  });
+}
+
+// ---------- Frases en secuencia ----------
+const frase = document.getElementById("frase");
+function mostrar(i){
+  if (i >= FRASES.length){ suspenso(0); return; }
+  frase.classList.remove("on");
+  setTimeout(() => { frase.textContent = FRASES[i]; frase.classList.add("on"); }, 900);
+  setTimeout(() => mostrar(i+1), 4600);
+}
+function suspenso(i){
+  if (i >= SUSPENSO.length){ pam(); return; }
+  const [txt, escala, dur] = SUSPENSO[i];
+  frase.style.transition = "opacity .35s ease, filter .35s ease, transform .35s ease";
+  frase.classList.remove("on");
+  setTimeout(() => {
+    frase.textContent = txt;
+    frase.style.display = "inline-block";
+    frase.style.fontSize = escala + "em";
+    frase.classList.toggle("tiembla", i >= 3);
+    frase.classList.add("on");
+  }, 350);
+  setTimeout(() => suspenso(i + 1), dur + 350);
+}
+
+function pam(){
+  document.getElementById("flash").classList.add("on");
+  const m = document.querySelector("main");
+  m.classList.add("sacude");
+  setTimeout(() => m.classList.remove("sacude"), 500);
+  setTimeout(() => {
+    document.getElementById("frases").style.display = "none";
+    const p = document.getElementById("pregunta");
+    p.style.display = "block"; p.classList.add("pop");
+    document.getElementById("titulo").textContent = "¿Quieres ser mi novia?";
+    lluvia();
+  }, 150);
+}
+
+// ---------- Música ----------
+const musica = document.getElementById("musica"), btnSonido = document.getElementById("sonido");
+if (MUSICA) musica.src = MUSICA;
+
+function iniciaMusica(){
+  if (!MUSICA || !musica.paused) return;
+  btnSonido.style.display = "block";
+  musica.muted = false; musica.volume = 0;
+  musica.play().then(() => {
+    btnSonido.textContent = "🔊";
+    let v = 0;
+    const t = setInterval(() => { v = Math.min(v + .02, VOLUMEN); musica.volume = v; if (v >= VOLUMEN) clearInterval(t); }, 100);
+  }).catch(() => { btnSonido.textContent = "🔇"; });
+}
+btnSonido.addEventListener("click", () => {
+  if (musica.paused){ musica.volume = VOLUMEN; musica.play(); btnSonido.textContent = "🔊"; }
+  else { musica.pause(); btnSonido.textContent = "🔇"; }
+});
+
+
+// ---------- Acceso ----------
+const limpia = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+const acceso = document.getElementById("acceso"), panel = document.getElementById("panel");
+const msg = document.getElementById("msg"), btnEntrar = document.getElementById("btn-entrar");
+let fallos = 0, ocupado = false;
+
+document.getElementById("login-form").addEventListener("submit", e => {
+  e.preventDefault();
+  if (ocupado) return;
+  ocupado = true;
+  iniciaMusica();
+  const n = limpia(document.getElementById("in-nombre").value);
+  const k = limpia(document.getElementById("in-clave").value);
+  const nombreOk = NOMBRES_VALIDOS.some(v => limpia(v) === n);
+  const claveOk = k === limpia(CLAVE);
+
+  btnEntrar.disabled = true;
+  btnEntrar.textContent = "Verificando credenciales…";
+  msg.className = ""; msg.textContent = "";
+
+  setTimeout(() => {
+    if (nombreOk && claveOk){
+      btnEntrar.textContent = "Acceso autorizado ✓";
+      msg.className = "bien";
+      msg.textContent = "Credenciales verificadas. Cargando expediente…";
+      setTimeout(() => {
+        acceso.classList.add("fuera");
+        document.getElementById("frases").style.display = "flex";
+        document.getElementById("paseo").style.display = "flex";
+        setTimeout(() => mostrar(0), 1200);
+      }, 1300);
+      return;
+    }
+    fallos++;
+    let t = !nombreOk && !claveOk ? "Credenciales no reconocidas."
+          : !nombreOk ? "Usuario no reconocido."
+          : "Clave de autorización incorrecta.";
+    t += "\nIntento no autorizado n.º " + fallos + " registrado.";
+    if (fallos >= 3 && PISTA) t += "\n" + PISTA;
+    msg.className = "err"; msg.textContent = t;
+    btnEntrar.disabled = false; btnEntrar.textContent = "Iniciar sesión";
+    panel.classList.remove("mal"); void panel.offsetWidth; panel.classList.add("mal");
+    ocupado = false;
+  }, 900);
+});
+
+// ---------- Botón "No" que escapa ----------
+const no = document.getElementById("no"), si = document.getElementById("si"), err = document.getElementById("error");
+const ERRORES = [
+  "Error 404: la opción «No» no se encuentra.",
+  "Error: el botón «No» dejó de funcionar. Intenta con «Sí».",
+  "Excepción no controlada: NoSePuedeNegarException",
+  "Error 500: el corazón del programador no soporta esa respuesta.",
+  "Fallo crítico: «No» fue desactivado por exceso de amor.",
+  "Advertencia: seguir intentando no cambiará el resultado 😌"
+];
+let intentos = 0, tErr;
+const LIMITE = 6; // intentos antes de que «No» desaparezca por completo
+
+function desaparece(){
+  no.style.transition = "opacity .6s ease, transform .6s ease";
+  no.style.opacity = "0";
+  no.style.transform = "scale(.2)";
+  no.style.pointerEvents = "none";
+  setTimeout(() => { no.style.display = "none"; }, 650);
+  si.style.transform = "scale(1.9)";
+  err.textContent = "La opción «No» fue eliminada del sistema. Solo queda «Sí» 💖";
+  err.classList.add("on");
+  clearTimeout(tErr); tErr = setTimeout(() => err.classList.remove("on"), 4000);
+}
+
+function escapa(e){
+  if (e) e.preventDefault();
+  intentos++;
+  if (intentos >= LIMITE){ if (no.style.display !== "none") desaparece(); return; }
+  if (no.parentElement !== document.body) document.body.appendChild(no);
+  no.classList.add("huye");
+  const m = 20, bw = no.offsetWidth, bh = no.offsetHeight;
+  no.style.left = (m + Math.random()*(innerWidth  - bw - 2*m)) + "px";
+  no.style.top  = (m + Math.random()*(innerHeight - bh - 2*m)) + "px";
+  si.style.transform = `scale(${Math.min(1 + intentos*.12, 1.9)})`;
+  err.textContent = ERRORES[(intentos-1) % ERRORES.length];
+  err.classList.add("on");
+  clearTimeout(tErr); tErr = setTimeout(() => err.classList.remove("on"), 2600);
+}
+no.addEventListener("pointerenter", escapa);
+no.addEventListener("pointerdown", escapa);
+no.addEventListener("click", escapa);
+
+// ---------- "Sí" ----------
+si.addEventListener("click", () => {
+  document.getElementById("pregunta").style.display = "none";
+  no.style.display = "none"; err.classList.remove("on");
+  const f = document.getElementById("foto");
+  f.src = FOTO;
+  f.onerror = () => { f.style.display = "none"; document.getElementById("faltante").style.display = "flex"; };
+  document.getElementById("pie").textContent = PIE;
+  document.getElementById("final").style.display = "block";
+  lluvia(); setTimeout(lluvia, 700); setTimeout(lluvia, 1500);
+});
+</script>
+</body>
+</html>
